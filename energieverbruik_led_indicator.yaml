@@ -1,0 +1,101 @@
+id: energieverbruik_led_indicator
+alias: Energieverbruik LED Indicator
+description: "Logaritmische VU-meter met 6 LED's voor verbruik, 6 voor teruglevering en blauwe middenstand"
+trigger:
+  - platform: time_pattern
+    seconds: "/5"
+condition: []
+action:
+  - variables:
+      vermogen: "{{ states('sensor.p1_meter_vermogen') | float }}"
+      grens_dood_zone: 50
+      max_abs: 2500
+      leds_per_kant: 6
+      vermogen_abs: "{{ vermogen | abs }}"
+      scaled: "{{ vermogen_abs / max_abs }}"
+      log_scaled: "{{ scaled ** 0.5 }}"
+      leds_on: "{{ (log_scaled * leds_per_kant) | int }}"
+      partial_brightness: "{{ ((log_scaled * leds_per_kant) - leds_on) * 255 | int }}"
+      is_verbruik: "{{ vermogen > grens_dood_zone }}"
+      is_teruglevering: "{{ vermogen < -grens_dood_zone }}"
+      is_midden: "{{ not is_verbruik and not is_teruglevering }}"
+  - repeat:
+      count: 12
+      sequence:
+        - variables:
+            index: "{{ repeat.index }}"
+            entity: "light.energymonitor_p1_{{ index }}"
+            is_left: "{{ index <= 6 }}"
+            is_right: "{{ index > 6 }}"
+            led_index: >
+              {% if is_left %}
+                {{ 7 - index }}
+              {% else %}
+                {{ index - 6 }}
+              {% endif %}
+        - choose:
+            - conditions: "{{ is_verbruik and is_right }}"
+              sequence:
+                - choose:
+                    - conditions: "{{ led_index <= leds_on }}"
+                      sequence:
+                        - service: light.turn_on
+                          target:
+                            entity_id: "{{ entity }}"
+                          data:
+                            rgb_color: [255, 0, 0]
+                            brightness: 255
+                    - conditions: "{{ led_index == leds_on + 1 and partial_brightness > 0 }}"
+                      sequence:
+                        - service: light.turn_on
+                          target:
+                            entity_id: "{{ entity }}"
+                          data:
+                            rgb_color: [255, 0, 0]
+                            brightness: "{{ partial_brightness }}"
+                    - conditions: []
+                      sequence:
+                        - service: light.turn_off
+                          target:
+                            entity_id: "{{ entity }}"
+            - conditions: "{{ is_teruglevering and is_left }}"
+              sequence:
+                - choose:
+                    - conditions: "{{ led_index <= leds_on }}"
+                      sequence:
+                        - service: light.turn_on
+                          target:
+                            entity_id: "{{ entity }}"
+                          data:
+                            rgb_color: [0, 255, 0]
+                            brightness: 255
+                    - conditions: "{{ led_index == leds_on + 1 and partial_brightness > 0 }}"
+                      sequence:
+                        - service: light.turn_on
+                          target:
+                            entity_id: "{{ entity }}"
+                          data:
+                            rgb_color: [0, 255, 0]
+                            brightness: "{{ partial_brightness }}"
+                    - conditions: []
+                      sequence:
+                        - service: light.turn_off
+                          target:
+                            entity_id: "{{ entity }}"
+            - conditions: "{{ is_midden }}"
+              sequence:
+                - choose:
+                    - conditions: "{{ index in [6, 7] }}"
+                      sequence:
+                        - service: light.turn_on
+                          target:
+                            entity_id: "{{ entity }}"
+                          data:
+                            rgb_color: [0, 0, 255]
+                            brightness: 255
+                    - conditions: []
+                      sequence:
+                        - service: light.turn_off
+                          target:
+                            entity_id: "{{ entity }}"
+mode: single
