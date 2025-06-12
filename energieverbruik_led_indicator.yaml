@@ -11,11 +11,14 @@ action:
       grens_dood_zone: 50
       max_abs: 2500
       leds_per_kant: 6
+      max_brightness: 128  # <<< Set max brightness here (0–255)
+      
       vermogen_abs: "{{ vermogen | abs }}"
       scaled: "{{ vermogen_abs / max_abs }}"
       log_scaled: "{{ scaled ** 0.5 }}"
       leds_on: "{{ (log_scaled * leds_per_kant) | int }}"
-      partial_brightness: "{{ ((log_scaled * leds_per_kant) - leds_on) * 255 | int }}"
+      partial_brightness: "{{ ((log_scaled * leds_per_kant) - leds_on) * max_brightness | int }}"
+      
       is_verbruik: "{{ vermogen > grens_dood_zone }}"
       is_teruglevering: "{{ vermogen < -grens_dood_zone }}"
       is_midden: "{{ not is_verbruik and not is_teruglevering }}"
@@ -44,7 +47,7 @@ action:
                             entity_id: "{{ entity }}"
                           data:
                             rgb_color: [255, 0, 0]
-                            brightness: 255
+                            brightness: "{{ max_brightness }}"
                     - conditions: "{{ led_index == leds_on + 1 and partial_brightness > 0 }}"
                       sequence:
                         - service: light.turn_on
@@ -68,7 +71,7 @@ action:
                             entity_id: "{{ entity }}"
                           data:
                             rgb_color: [0, 255, 0]
-                            brightness: 255
+                            brightness: "{{ max_brightness }}"
                     - conditions: "{{ led_index == leds_on + 1 and partial_brightness > 0 }}"
                       sequence:
                         - service: light.turn_on
@@ -92,7 +95,7 @@ action:
                             entity_id: "{{ entity }}"
                           data:
                             rgb_color: [0, 0, 255]
-                            brightness: 255
+                            brightness: "{{ max_brightness }}"
                     - conditions: []
                       sequence:
                         - service: light.turn_off
