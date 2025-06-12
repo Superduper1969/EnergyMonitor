@@ -1,0 +1,68 @@
+#### Energieprijs ####
+- platform: template
+  sensors:
+    energie_prijs:
+      friendly_name: Energie Prijs
+      value_template: "{% if states ('sensor.dagprijs_current_electricity_market_price') | float < '0'|float %}
+      Terugleveren
+      {% elif states ('sensor.dagprijs_current_electricity_market_price') | float|round(2) == '0'|float %}
+      Gratis
+      {% elif states ('sensor.dagprijs_current_electricity_market_price') | float < states ('sensor.dagprijs_average_electricity_price_today') | float  %}
+      Goedkoop
+      {% elif states ('sensor.dagprijs_current_electricity_market_price') | float|round(2) == states ('sensor.dagprijs_average_electricity_price_today') | float|round(2) %}
+      Gemiddeld
+      {% else %}
+      Duur
+      {% endif %}"
+
+- platform: template
+  sensors:
+    energie_prijs_next:
+      friendly_name: Energie Prijs Next
+      value_template: "{% if states ('sensor.dagprijs_next_hour_electricity_market_price') | float < '0'|float %}
+      Terugleveren
+      {% elif states ('sensor.dagprijs_next_hour_electricity_market_price') | float|round(2) == '0'|float %}
+      Gratis
+      {% elif states ('sensor.dagprijs_next_hour_electricity_market_price') | float < states ('sensor.dagprijs_average_electricity_price_today') | float  %}
+      Goedkoop
+      {% elif states ('sensor.dagprijs_next_hour_electricity_market_price') | float|round(2) == states ('sensor.dagprijs_average_electricity_price_today') | float|round(2) %}
+      Gemiddeld
+      {% else %}
+      Duur
+      {% endif %}"
+
+- platform: template
+  sensors:
+    gas_prijs:
+      friendly_name: Gas Prijs
+      unit_of_measurement: "€/m³"
+      value_template: "{{ states('sensor.current_gas_price_including_tax') | float +  0.05911 +0.705 | float }}"
+
+- platform: integration
+  name: "Quatt Energy Input kWh"
+  source: sensor.heatpump_hp1_powerinput
+  unit_prefix: k
+  round: 2
+  method: left
+    
+- platform: integration
+  name: "Quatt Heat Energy kWh"
+  source: sensor.heatpump_hp1_power
+  unit_prefix: k
+  round: 2
+  method: left
+
+- platform: template
+  sensors:
+    netto_power:
+      friendly_name: Netto Power
+      unit_of_measurement: "W"
+      value_template: "{{ states('sensor.smappee_load_grid') | float - states('sensor.smappee_load_car_charger') | float }}"
+
+- platform: history_stats
+  type: time
+  name: Quatt draaiuren vandaag
+  entity_id: sensor.heatpump_qc_supervisory_control_mode
+  state: "Heating - heatpump only"
+  start: "{{ now().replace(hour=0, minute=0, second=0, microsecond=0) }}"
+  end: "{{ now() }}"
